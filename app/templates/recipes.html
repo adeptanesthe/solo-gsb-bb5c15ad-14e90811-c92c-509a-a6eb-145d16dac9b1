@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}已存配方 · 过敏原标签审查台{% endblock %}
+{% block body %}
+<h1>已存配方版本</h1>
+<p class="hint">点击名称查看审查结果并导出报告；在<a href="/compare">两版对比</a>页可直接选择两个版本。</p>
+
+{% if recipes %}
+<table class="tbl">
+  <thead><tr><th>#</th><th>产品名称</th><th>版本</th><th>配方</th><th>保存时间 (UTC)</th><th>操作</th></tr></thead>
+  <tbody>
+  {% for r in recipes %}
+  <tr>
+    <td>{{ r.id }}</td>
+    <td><a href="/recipes/{{ r.id }}"><b>{{ r.name }}</b></a></td>
+    <td>{{ r.version or '—' }}</td>
+    <td class="mono">{{ r.ingredients_text[:48] }}{% if r.ingredients_text|length > 48 %}…{% endif %}</td>
+    <td>{{ r.created_at }}</td>
+    <td class="nowrap">
+      <a class="btn btn-sm" href="/report?recipe_id={{ r.id }}&fmt=md">MD</a>
+      <a class="btn btn-sm btn-secondary" href="/report?recipe_id={{ r.id }}&fmt=txt">TXT</a>
+      <form method="post" action="/recipes/{{ r.id }}/delete" class="inline"
+            onsubmit="return confirm('确认删除配方 #{{ r.id }}？')">
+        <button class="btn btn-sm btn-danger" type="submit">删除</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="panel"><p>还没有保存过配方。到<a href="/">单版审查</a>录入并勾选“同时保存”。</p></div>
+{% endif %}
+{% endblock %}

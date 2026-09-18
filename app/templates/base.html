@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}食品过敏原标签审查台{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">🏷️ 过敏原标签审查台</a>
+  <nav>
+    <a href="/">单版审查</a>
+    <a href="/compare">两版对比</a>
+    <a href="/recipes">已存配方</a>
+    <a href="/dict">过敏原字典</a>
+  </nav>
+</header>
+<main class="container">
+  {% block body %}{% endblock %}
+</main>
+<footer class="footer">食品过敏原标签审查台 · 数据保存在本机 SQLite · 依据 GB 7718-2025 致敏物标识要求（8 类预置）</footer>
+
+<script>
+// 将来源表单的字段复制到导出表单
+function copyForm(srcId, dstForm) {
+  const src = document.getElementById(srcId);
+  if (!src) return;
+  src.querySelectorAll('input, textarea, select').forEach(el => {
+    if (!el.name) return;
+    let hidden = dstForm.querySelector('input[name="' + el.name + '"]');
+    if (!hidden) {
+      hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = el.name;
+      dstForm.appendChild(hidden);
+    }
+    hidden.value = el.value;
+  });
+}
+</script>
+</body>
+</html>

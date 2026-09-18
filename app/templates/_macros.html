@@ -1,0 +1,45 @@
+{# 递归渲染配料层级树 #}
+{% macro tree_macro(entries) %}
+{% for e in entries %}
+<div class="tree-row" style="margin-left: {{ e.depth * 22 }}px">
+  <span class="tree-node">{{ '📦' if e.is_composite else '🔹' }} {{ e.name }}</span>
+  {% if e.direct %}
+    {% for a in e.direct %}<span class="badge badge-direct" title="直接命中字典">{{ a }}</span>{% endfor %}
+  {% endif %}
+  {% if e.is_composite %}
+    {% for a in e.propagated if a not in e.direct %}
+      <span class="badge badge-prop" title="子配料传播">{{ a }}▲</span>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endfor %}
+{% endmacro %}
+
+{# 审查结论卡片 #}
+{% macro verdict_card(result) %}
+{% if result.label_ok %}
+<div class="card ok"><h3>✅ 标签合格</h3><p>配方检出的过敏原与标签声明完全一致，无遗漏、无多报。</p></div>
+{% else %}
+<div class="card bad"><h3>⚠️ 标签存在问题</h3><ul>
+  {% if result.balance_error %}<li>配方语法错误：{{ result.balance_error }}</li>{% endif %}
+  {% if result.missing %}<li><b>漏标</b>（配方含、标签未声明）：
+    {% for a in result.missing %}<span class="badge badge-miss">{{ a }}</span>{% endfor %}</li>{% endif %}
+  {% if result.extra %}<li><b>多报</b>（标签声明、配方不含）：
+    {% for a in result.extra %}<span class="badge badge-extra">{{ a }}</span>{% endfor %}</li>{% endif %}
+  {% if result.unrecognized %}<li><b>无法识别的声明片段</b>：
+    {% for t in result.unrecognized %}<span class="badge badge-unknown">{{ t }}</span>{% endfor %}</li>{% endif %}
+</ul></div>
+{% endif %}
+{% endmacro %}
+
+{# 报告导出按钮（未保存表单走 POST） #}
+{% macro adhoc_export(form_id) %}
+<form method="post" action="/report/adhoc" class="inline" onsubmit="copyForm('{{ form_id }}', this)">
+  <input type="hidden" name="fmt" value="md">
+  <button class="btn" type="submit">⬇ 导出 Markdown 报告</button>
+</form>
+<form method="post" action="/report/adhoc" class="inline" onsubmit="copyForm('{{ form_id }}', this)">
+  <input type="hidden" name="fmt" value="txt">
+  <button class="btn btn-secondary" type="submit">⬇ 导出 TXT 报告</button>
+</form>
+{% endmacro %}

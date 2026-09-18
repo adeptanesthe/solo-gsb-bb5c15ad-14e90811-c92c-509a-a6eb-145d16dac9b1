@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}过敏原字典 · 过敏原标签审查台{% endblock %}
+{% block body %}
+<h1>过敏原字典维护</h1>
+<p class="hint">“原料字典”定义每种原料含有的过敏原类别；类别支持别名，用于识别标签声明文本。原料匹配采用<b>精确优先、最长子串兜底</b>（子串键不少于 2 字）。</p>
+
+<div class="grid2">
+  <div class="panel">
+    <h3>新增原料映射</h3>
+    <form method="post" action="/dict/mapping">
+      <label>原料名称<input type="text" name="ingredient" required placeholder="如：小麦淀粉"></label>
+      <label>对应过敏原类别
+        <select name="allergen">
+          <option value="">（无 / 不确定）</option>
+          {% for a in allergens %}<option value="{{ a.name }}">{{ a.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>备注<input type="text" name="note" placeholder="如：精炼后不视为致敏原"></label>
+      <button class="btn btn-primary" type="submit">添加</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h3>新增过敏原类别</h3>
+    <form method="post" action="/dict/allergen">
+      <label>类别名称<input type="text" name="name" required placeholder="如：芝麻"></label>
+      <label>别名（逗号分隔）<input type="text" name="aliases" placeholder="如：芝麻油,芝麻籽"></label>
+      <label>说明<input type="text" name="note" placeholder="如：部分地区要求标识"></label>
+      <button class="btn btn-primary" type="submit">添加类别</button>
+    </form>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>过敏原类别（{{ allergens|length }}）</h3>
+  <div class="chips">
+    {% for a in allergens %}
+    <span class="cat-chip"><b>{{ a.name }}</b>
+      <span class="hint">{{ a.aliases }}</span>
+    </span>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="panel">
+  <h3>原料映射（{{ mappings|length }}）</h3>
+  <table class="tbl">
+    <thead><tr><th>原料</th><th>过敏原类别</th><th>备注</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for m in mappings %}
+    <tr>
+      <form method="post" action="/dict/mapping/{{ m.id }}/update">
+        <td><input class="cell-input" name="ingredient" value="{{ m.ingredient }}" required></td>
+        <td>
+          <select class="cell-input" name="allergen">
+            <option value="" {{ '' if m.allergen else 'selected' }}>（无）</option>
+            {% for a in allergens %}
+            <option value="{{ a.name }}" {{ 'selected' if a.name == m.allergen else '' }}>{{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td><input class="cell-input" name="note" value="{{ m.note }}"></td>
+        <td class="nowrap">
+          <button class="btn btn-sm" type="submit">保存</button>
+      </form>
+        <form method="post" action="/dict/mapping/{{ m.id }}/delete" class="inline">
+          <button class="btn btn-sm btn-danger" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

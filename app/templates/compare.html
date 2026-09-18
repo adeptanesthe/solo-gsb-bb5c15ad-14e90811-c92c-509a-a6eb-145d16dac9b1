@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_macros.html" import tree_macro, verdict_card %}
+{% block title %}两版对比 · 过敏原标签审查台{% endblock %}
+{% block body %}
+<h1>配方版本过敏原对比</h1>
+<p class="hint">直接粘贴两版配方，或从已存配方中选择后自动填入。可查看过敏原类别与原料级增减。</p>
+
+<form id="compare-form" method="post" action="/compare" class="panel">
+  <label>产品名称<input type="text" name="name" value="{{ name }}" placeholder="如：坚果风味酸奶面包"></label>
+
+  <div class="grid2">
+    <div class="version-box">
+      <h3>旧版（A）</h3>
+      <label>选择已存配方
+        <select name="old_recipe_id" data-target="old">
+          <option value="">— 手动录入 —</option>
+          {% for r in recipes %}
+          <option value="{{ r.id }}">#{{ r.id }} {{ r.name }} {{ r.version }}（{{ r.created_at }}）</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>版本标识<input type="text" name="old_version" id="old_version" value="{{ old_version }}" placeholder="v1"></label>
+      <label>配方文本<textarea name="old_ingredients" id="old_ingredients" rows="4" placeholder="小麦粉、水、全脂乳粉、鸡蛋、酵母">{{ old_ingredients }}</textarea></label>
+      <label>标签声明<textarea name="old_declared" id="old_declared" rows="2" placeholder="含有：麸质谷物、乳、蛋">{{ old_declared }}</textarea></label>
+    </div>
+    <div class="version-box">
+      <h3>新版（B）</h3>
+      <label>选择已存配方
+        <select name="new_recipe_id" data-target="new">
+          <option value="">— 手动录入 —</option>
+          {% for r in recipes %}
+          <option value="{{ r.id }}">#{{ r.id }} {{ r.name }} {{ r.version }}（{{ r.created_at }}）</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>版本标识<input type="text" name="new_version" id="new_version" value="{{ new_version }}" placeholder="v2"></label>
+      <label>配方文本<textarea name="new_ingredients" id="new_ingredients" rows="4" placeholder="小麦粉、水、坚果酱（扁桃仁、腰果）、全脂乳粉、鸡蛋">{{ new_ingredients }}</textarea></label>
+      <label>标签声明<textarea name="new_declared" id="new_declared" rows="2" placeholder="含有：麸质谷物、乳、蛋、坚果">{{ new_declared }}</textarea></label>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">🔍 对比两版</button>
+  </div>
+</form>
+
+{% if cmp %}
+<div class="actions">
+  <form method="post" action="/report/adhoc" class="inline" onsubmit="copyForm('compare-form', this)">
+    <input type="hidden" name="kind" value="compare">
+    <input type="hidden" name="fmt" value="md">
+    <button class="btn" type="submit">⬇ 导出对比报告 (MD)</button>
+  </form>
+  <form method="post" action="/report/adhoc" class="inline" onsubmit="copyForm('compare-form', this)">
+    <input type="hidden" name="kind" value="compare">
+    <input type="hidden" name="fmt" value="txt">
+    <button class="btn btn-secondary" type="submit">⬇ 导出对比报告 (TXT)</button>
+  </form>
+</div>
+{% endif %}
+
+{% if cmp %}
+<section class="results">
+  <div class="card {{ 'ok' if cmp.status == 'unchanged' else 'bad' if cmp.added_allergens else 'warn' }}">
+    <h3>对比结论：
+      {% if cmp.status == 'unchanged' %}两版过敏原无变化
+      {% elif cmp.status == 'fixed' %}✅ 标签问题已修复
+      {% elif cmp.status == 'broke' %}🚨 新版引入新过敏原
+      {% else %}两版配方存在变化{% endif %}
+    </h3>
+    <ul>
+      <li>新增过敏原：{% for a in cmp.added_allergens %}<span class="badge badge-miss">{{ a }}</span>{% else %}无{% endfor %}</li>
+      <li>移除过敏原：{% for a in cmp.removed_allergens %}<span class="badge badge-removed">{{ a }}</span>{% else %}无{% endfor %}</li>
+      <li>持续存在：{% for a in cmp.unchanged_allergens %}<span class="badge badge-direct">{{ a }}</span>{% else %}无{% endfor %}</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>原料级增减</h3>
+    <div class="grid2">
+      <div><b>新增原料</b>：{% for n in cmp.added_leaf_names %}<span class="leaf-add">＋{{ n }}</span> {% else %}无{% endfor %}</div>
+      <div><b>删除原料</b>：{% for n in cmp.removed_leaf_names %}<span class="leaf-del">－{{ n }}</span> {% else %}无{% endfor %}</div>
+    </div>
+  </div>
+
+  {% if cmp.added_leaves or cmp.removed_leaves %}
+  <div class="panel">
+    <h3>按过敏原类别的来源变化</h3>
+    <table class="tbl">
+      <thead><tr><th>类别</th><th>新增来源</th><th>移除来源</th></tr></thead>
+      <tbody>
+      {% for a in cmp.added_allergens + cmp.removed_allergens + cmp.unchanged_allergens %}
+        {% if cmp.added_leaves.get(a) or cmp.removed_leaves.get(a) %}
+        <tr>
+          <td><b>{{ a }}</b></td>
+          <td>{% for n in cmp.added_leaves.get(a, []) %}<span class="leaf-add">＋{{ n }}</span> {% endfor %}</td>
+          <td>{% for n in cmp.removed_leaves.get(a, []) %}<span class="leaf-del">－{{ n }}</span> {% endfor %}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>旧版 {{ old_version }} 审查</h3>
+      {{ verdict_card(cmp.old) }}
+      <details><summary>查看配料层级</summary>{{ tree_macro(cmp.old.flat) }}</details>
+    </div>
+    <div class="panel">
+      <h3>新版 {{ new_version }} 审查</h3>
+      {{ verdict_card(cmp.new) }}
+      <details><summary>查看配料层级</summary>{{ tree_macro(cmp.new.flat) }}</details>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import tree_macro, verdict_card, adhoc_export %}
+{% block title %}单版审查 · 过敏原标签审查台{% endblock %}
+{% block body %}
+<h1>配方过敏原审查</h1>
+<p class="hint">录入配方文本（复合原料用括号展开子配料，逗号/顿号/分号分隔）与标签上已声明的过敏原，系统将解析括号层级、自下而上传播过敏原集合，并核对漏标与多报。</p>
+
+<form id="review-form" method="post" action="/review" class="panel">
+  <input type="hidden" name="kind" value="single">
+  <div class="grid2">
+    <label>产品名称<input type="text" name="name" value="{{ name }}" placeholder="如：坚果风味酸奶面包"></label>
+    <label>版本<input type="text" name="version" value="{{ version }}" placeholder="如：v1 / 2026-09"></label>
+  </div>
+  <label>配方文本
+    <textarea name="ingredients" rows="5" required placeholder="小麦粉、水、坚果酱（扁桃仁、腰果、白砂糖）、全脂乳粉、大豆磷脂、鸡蛋、酵母、食用盐">{{ ingredients }}</textarea>
+  </label>
+  <label>标签声明（致敏物提示）
+    <textarea name="declared" rows="2" placeholder="本产品含有：麸质谷物、乳、蛋、坚果、大豆">{{ declared }}</textarea>
+  </label>
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">🔍 开始审查</button>
+    <label class="inline"><input type="checkbox" name="save" value="1"> 同时保存此配方版本</label>
+  </div>
+</form>
+
+{% if result %}
+<section class="results">
+  {% if just_saved %}<div class="card ok">已保存到<a href="/recipes/{{ recipe_id }}">已存配方</a>，可直接导出报告。</div>{% endif %}
+  {{ verdict_card(result) }}
+
+  <div class="panel">
+    <h3>配料层级与过敏原传播</h3>
+    <div class="legend">
+      <span class="badge badge-direct">直接命中</span>
+      <span class="badge badge-prop">子配料传播 ▲</span>
+    </div>
+    {{ tree_macro(result.flat) }}
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>配方检出过敏原（{{ result.all_detected|length }} 类）</h3>
+      {% if result.all_detected %}
+      <table class="tbl">
+        <thead><tr><th>类别</th><th>命中的叶子原料</th></tr></thead>
+        <tbody>
+        {% for a in result.all_detected %}
+          <tr><td><b>{{ a }}</b></td><td>{{ result.leaves[a]|join('、') if result.leaves[a] else '（复合配料传播）' }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p>未检出字典中的过敏原。</p>{% endif %}
+    </div>
+    <div class="panel">
+      <h3>标签核对</h3>
+      <p>声明片段：{% for t in result.declared %}<code>{{ t }}</code> {% else %}（空）{% endfor %}</p>
+      {% if result.recognized_declared %}
+      <p class="hint">识别：{% for t, c in result.recognized_declared.items() %}<code>{{ t }}</code>→{{ c }}；{% endfor %}</p>
+      {% endif %}
+      <ul class="verdict-list">
+        <li>漏标：{% for a in result.missing %}<span class="badge badge-miss">{{ a }}</span>{% else %}无{% endfor %}</li>
+        <li>多报：{% for a in result.extra %}<span class="badge badge-extra">{{ a }}</span>{% else %}无{% endfor %}</li>
+        <li>未识别：{% for t in result.unrecognized %}<span class="badge badge-unknown">{{ t }}</span>{% else %}无{% endfor %}</li>
+      </ul>
+      <div class="actions">
+        {% if recipe_id %}
+          <a class="btn" href="/report?recipe_id={{ recipe_id }}&fmt=md" target="_blank">⬇ 导出 Markdown 报告</a>
+          <a class="btn btn-secondary" href="/report?recipe_id={{ recipe_id }}&fmt=txt" target="_blank">⬇ 导出 TXT 报告</a>
+        {% else %}
+          {{ adhoc_export('review-form') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
